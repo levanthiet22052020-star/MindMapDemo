@@ -9,6 +9,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Svg, G, Path, Rect, Defs, Filter, FeDropShadow, ForeignObject } from 'react-native-svg';
 import { MindMapData, MindMapNode } from '../../types/mindmap';
@@ -18,6 +19,7 @@ import { calculateLayout, generateId } from '../../utils/layout';
 interface Props {
   data: MindMapData;
   onDataChange: (data: MindMapData) => void;
+  onFitReady?: (fitFn: () => void) => void;
 }
 
 interface LayoutNode {
@@ -38,7 +40,7 @@ function isVisible(data: MindMapData, node: MindMapNode): boolean {
   return true;
 }
 
-export default function MindMap({ data, onDataChange }: Props) {
+export default function MindMap({ data, onDataChange, onFitReady }: Props) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -56,10 +58,8 @@ export default function MindMap({ data, onDataChange }: Props) {
     setContainerSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
   }, []);
 
-  // Auto-fit: chạy khi container hoặc layout thay đổi, nhưng skip nếu user đang kéo/zoom
-  useEffect(() => {
+  const computeFit = useCallback(() => {
     if (containerSize.width === 0 || containerSize.height === 0) return;
-    if (userInteracted.current) return;
 
     const allLayouts = Object.values(layout);
     if (allLayouts.length === 0) return;
@@ -69,28 +69,48 @@ export default function MindMap({ data, onDataChange }: Props) {
     const maxX = Math.max(...allLayouts.map((n) => n.x + n.width));
     const maxY = Math.max(...allLayouts.map((n) => n.y + n.height));
 
-    const contentW = maxX - minX + 40;
-    const contentH = maxY - minY + 40;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
     if (contentW <= 0 || contentH <= 0) return;
 
-    const pad = 16;
+    const isMobile = containerSize.width < 768;
+    const pad = isMobile ? 16 : 32;
+
     const fitScale = Math.min(
       (containerSize.width - pad * 2) / contentW,
       (containerSize.height - pad * 2) / contentH,
-      1.2,
+      isMobile ? 1 : 1.2,
     );
-    fitScaleRef.current = fitScale;
+    const minScale = isMobile ? 0.35 : 0.4;
+    const clamped = Math.max(minScale, fitScale);
+    fitScaleRef.current = clamped;
 
-    const offX = (containerSize.width - contentW * fitScale) / 2 - minX * fitScale;
-    const offY = (containerSize.height - contentH * fitScale) / 2 - minY * fitScale;
+    const offX = (containerSize.width - contentW * clamped) / 2 - minX * clamped;
+    const offY = (containerSize.height - contentH * clamped) / 2 - minY * clamped;
 
-    scale.value = withTiming(fitScale);
-    savedScale.value = fitScale;
-    translateX.value = withTiming(offX);
+    scale.value = withTiming(clamped, { duration: 300 });
+    savedScale.value = clamped;
+    translateX.value = withTiming(offX, { duration: 300 });
     savedTX.value = offX;
-    translateY.value = withTiming(offY);
+    translateY.value = withTiming(offY, { duration: 300 });
     savedTY.value = offY;
   }, [containerSize, layout]);
+
+  // Auto-fit khi container hoặc layout thay đổi
+  useEffect(() => {
+    if (userInteracted.current) return;
+    computeFit();
+  }, [computeFit]);
+
+  // Expose fitView cho parent (toolbar button)
+  useEffect(() => {
+    if (onFitReady) {
+      onFitReady(() => {
+        userInteracted.current = false;
+        computeFit();
+      });
+    }
+  }, [computeFit, onFitReady]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {
@@ -101,6 +121,7 @@ export default function MindMap({ data, onDataChange }: Props) {
     })
     .onEnd(() => {
       savedScale.value = scale.value;
+      runOnJS(setUserTrue)();
     });
 
   const pan = Gesture.Pan()
@@ -111,8 +132,12 @@ export default function MindMap({ data, onDataChange }: Props) {
     .onEnd(() => {
       savedTX.value = translateX.value;
       savedTY.value = translateY.value;
-      userInteracted.current = true;
+      runOnJS(setUserTrue)();
     });
+
+  function setUserTrue() {
+    userInteracted.current = true;
+  }
 
   const gesture = Gesture.Simultaneous(pinch, pan);
 
@@ -157,33 +182,30 @@ export default function MindMap({ data, onDataChange }: Props) {
     [data, onDataChange],
   );
 
-  // SVG size: fit đúng nội dung, không hardcode minimum lớn
-  const allLayouts = Object.values(layout);
-  const maxX = allLayouts.length ? Math.max(...allLayouts.map((n) => n.x + n.width)) : 400;
-  const maxY = allLayouts.length ? Math.max(...allLayouts.map((n) => n.y + n.height)) : 300;
-  const svgW = maxX + 60;
-  const svgH = maxY + 60;
-
   const visibleNodes = Object.values(data.nodes).filter(
     (n) => layout[n.id] && isVisible(data, n),
   );
+
+  const cw = containerSize.width || 400;
+  const ch = containerSize.height || 400;
 
   return (
     <View style={styles.container} onLayout={onContainerLayout} collapsable={false}>
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <GestureDetector gesture={gesture}>
           <View style={StyleSheet.absoluteFill}>
-            <Animated.View style={[{ position: 'absolute', top: 0, left: 0 }, animStyle]}>
-              <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
+            <Animated.View style={[StyleSheet.absoluteFill, animStyle]}>
+              <Svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
                 <Defs>
-                  <Filter id="sh" x="-10%" y="-10%" width="130%" height="140%">
-                    <FeDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#000" floodOpacity="0.06" />
+                  <Filter id="sh" x="-5%" y="-5%" width="115%" height="125%">
+                    <FeDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#6C5CE7" floodOpacity="0.06" />
                   </Filter>
-                  <Filter id="shR" x="-10%" y="-10%" width="130%" height="140%">
-                    <FeDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#4A7BF7" floodOpacity="0.18" />
+                  <Filter id="shR" x="-5%" y="-5%" width="115%" height="125%">
+                    <FeDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#6C5CE7" floodOpacity="0.2" />
                   </Filter>
                 </Defs>
 
+                {/* Connections */}
                 {visibleNodes.map((node) => {
                   if (!node.parentId) return null;
                   const pL = layout[node.parentId] as LayoutNode | undefined;
@@ -207,6 +229,7 @@ export default function MindMap({ data, onDataChange }: Props) {
                   );
                 })}
 
+                {/* Nodes */}
                 {visibleNodes.map((node) => {
                   const nl = layout[node.id] as LayoutNode;
                   const isRoot = node.id === data.rootId;
@@ -245,14 +268,16 @@ export default function MindMap({ data, onDataChange }: Props) {
                         </View>
                       </ForeignObject>
 
-                      <ForeignObject x={nl.x + w - 2} y={nl.y - 9} width={22} height={22}>
+                      {/* Add button */}
+                      <ForeignObject x={nl.x + w + 2} y={nl.y + h / 2 - 9} width={20} height={20}>
                         <TouchableOpacity onPress={() => addChild(node.id)} style={styles.addBtn} activeOpacity={0.7}>
                           <Text style={styles.addIco}>+</Text>
                         </TouchableOpacity>
                       </ForeignObject>
 
-                      {node.children.length > 0 && !isRoot && (
-                        <ForeignObject x={nl.x + w - 22} y={nl.y - 9} width={20} height={20}>
+                      {/* Collapse toggle */}
+                      {node.children.length > 0 && (
+                        <ForeignObject x={nl.x + w - 20} y={nl.y + h / 2 - 9} width={18} height={18}>
                           <TouchableOpacity onPress={() => toggleCollapse(node.id)} style={styles.colBtn} activeOpacity={0.7}>
                             <Text style={styles.colIco}>{node.collapsed ? '▾' : '▴'}</Text>
                           </TouchableOpacity>
@@ -302,23 +327,21 @@ const styles = StyleSheet.create({
   },
   addIco: {
     color: '#FFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     marginTop: -1,
   },
   colBtn: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FFF',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#F0EDFF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.nodeBorder,
   },
   colIco: {
     fontSize: 9,
-    color: Colors.textLight,
+    color: Colors.primary,
     marginTop: -1,
   },
 });

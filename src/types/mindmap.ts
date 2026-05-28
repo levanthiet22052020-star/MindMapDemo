@@ -1,6 +1,7 @@
 export interface MindMapNode {
   id: string;
   text: string;
+  subtitle?: string;
   x: number;
   y: number;
   color: string;
