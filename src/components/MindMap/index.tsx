@@ -97,7 +97,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
   const fitScaleRef = useRef(1);
 
   const rawLayout = useMemo(() => calculateLayout(data), [data]);
-  const { normalizedNodes, contentWidth, contentHeight } = useMemo(
+  const { nodes: normalizedNodes, contentWidth, contentHeight } = useMemo(
     () => normalizeLayout(rawLayout),
     [rawLayout],
   );
