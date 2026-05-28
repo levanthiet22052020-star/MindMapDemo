@@ -11,24 +11,18 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { Svg, G, Path, Rect, Defs, Filter, FeDropShadow, ForeignObject } from 'react-native-svg';
+import {
+  Svg, G, Path, Rect, Circle, Defs, Filter, FeDropShadow,
+  ForeignObject, LinearGradient, Stop,
+} from 'react-native-svg';
 import { MindMapData, MindMapNode } from '../../types/mindmap';
-import { Colors, NodeConfig } from '../../constants/theme';
-import { calculateLayout, generateId } from '../../utils/layout';
+import { Colors, NodeConfig, BranchColors } from '../../constants/theme';
+import { calculateLayout, generateId, LayoutNode } from '../../utils/layout';
 
 interface Props {
   data: MindMapData;
   onDataChange: (data: MindMapData) => void;
   onFitReady?: (fitFn: () => void) => void;
-}
-
-interface LayoutNode {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  subtreeHeight: number;
 }
 
 function isVisible(data: MindMapData, node: MindMapNode): boolean {
@@ -60,7 +54,6 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
 
   const computeFit = useCallback(() => {
     if (containerSize.width === 0 || containerSize.height === 0) return;
-
     const allLayouts = Object.values(layout);
     if (allLayouts.length === 0) return;
 
@@ -74,55 +67,42 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     if (contentW <= 0 || contentH <= 0) return;
 
     const isMobile = containerSize.width < 768;
-    const pad = isMobile ? 16 : 32;
-
+    const pad = isMobile ? 20 : 40;
     const fitScale = Math.min(
       (containerSize.width - pad * 2) / contentW,
       (containerSize.height - pad * 2) / contentH,
-      isMobile ? 1 : 1.2,
+      isMobile ? 1 : 1.15,
     );
-    const minScale = isMobile ? 0.35 : 0.4;
-    const clamped = Math.max(minScale, fitScale);
+    const clamped = Math.max(isMobile ? 0.35 : 0.4, fitScale);
     fitScaleRef.current = clamped;
 
     const offX = (containerSize.width - contentW * clamped) / 2 - minX * clamped;
     const offY = (containerSize.height - contentH * clamped) / 2 - minY * clamped;
 
-    scale.value = withTiming(clamped, { duration: 300 });
+    scale.value = withTiming(clamped, { duration: 350 });
     savedScale.value = clamped;
-    translateX.value = withTiming(offX, { duration: 300 });
+    translateX.value = withTiming(offX, { duration: 350 });
     savedTX.value = offX;
-    translateY.value = withTiming(offY, { duration: 300 });
+    translateY.value = withTiming(offY, { duration: 350 });
     savedTY.value = offY;
   }, [containerSize, layout]);
 
-  // Auto-fit khi container hoặc layout thay đổi
   useEffect(() => {
     if (userInteracted.current) return;
     computeFit();
   }, [computeFit]);
 
-  // Expose fitView cho parent (toolbar button)
   useEffect(() => {
-    if (onFitReady) {
-      onFitReady(() => {
-        userInteracted.current = false;
-        computeFit();
-      });
-    }
+    if (onFitReady) onFitReady(() => { userInteracted.current = false; computeFit(); });
   }, [computeFit, onFitReady]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {
       const minS = fitScaleRef.current * 0.3;
       const maxS = Math.max(fitScaleRef.current * 3, 3);
-      const next = Math.max(minS, Math.min(maxS, savedScale.value * e.scale));
-      scale.value = next;
+      scale.value = Math.max(minS, Math.min(maxS, savedScale.value * e.scale));
     })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-      runOnJS(setUserTrue)();
-    });
+    .onEnd(() => { savedScale.value = scale.value; runOnJS(setUser)(); });
 
   const pan = Gesture.Pan()
     .onUpdate((e) => {
@@ -132,12 +112,10 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     .onEnd(() => {
       savedTX.value = translateX.value;
       savedTY.value = translateY.value;
-      runOnJS(setUserTrue)();
+      runOnJS(setUser)();
     });
 
-  function setUserTrue() {
-    userInteracted.current = true;
-  }
+  function setUser() { userInteracted.current = true; }
 
   const gesture = Gesture.Simultaneous(pinch, pan);
 
@@ -149,38 +127,24 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     ],
   }));
 
-  const toggleCollapse = useCallback(
-    (nodeId: string) => {
-      const nodes = { ...data.nodes };
-      nodes[nodeId] = { ...nodes[nodeId], collapsed: !nodes[nodeId].collapsed };
-      onDataChange({ ...data, nodes });
-      userInteracted.current = false;
-    },
-    [data, onDataChange],
-  );
+  const toggleCollapse = useCallback((nodeId: string) => {
+    const nodes = { ...data.nodes };
+    nodes[nodeId] = { ...nodes[nodeId], collapsed: !nodes[nodeId].collapsed };
+    onDataChange({ ...data, nodes });
+    userInteracted.current = false;
+  }, [data, onDataChange]);
 
-  const addChild = useCallback(
-    (parentId: string) => {
-      const newId = generateId();
-      const parent = data.nodes[parentId];
-      const nodes = {
-        ...data.nodes,
-        [parentId]: { ...parent, children: [...parent.children, newId] },
-        [newId]: {
-          id: newId,
-          text: 'Node mới',
-          x: 0, y: 0,
-          color: '#FFFFFF',
-          children: [],
-          parentId,
-          collapsed: false,
-        } as MindMapNode,
-      };
-      onDataChange({ ...data, nodes });
-      userInteracted.current = false;
-    },
-    [data, onDataChange],
-  );
+  const addChild = useCallback((parentId: string) => {
+    const newId = generateId();
+    const parent = data.nodes[parentId];
+    const nodes = {
+      ...data.nodes,
+      [parentId]: { ...parent, children: [...parent.children, newId] },
+      [newId]: { id: newId, text: 'Node mới', x: 0, y: 0, color: '#FFFFFF', children: [], parentId, collapsed: false } as MindMapNode,
+    };
+    onDataChange({ ...data, nodes });
+    userInteracted.current = false;
+  }, [data, onDataChange]);
 
   const visibleNodes = Object.values(data.nodes).filter(
     (n) => layout[n.id] && isVisible(data, n),
@@ -197,13 +161,28 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
             <Animated.View style={[StyleSheet.absoluteFill, animStyle]}>
               <Svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
                 <Defs>
-                  <Filter id="sh" x="-5%" y="-5%" width="115%" height="125%">
-                    <FeDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#6C5CE7" floodOpacity="0.06" />
+                  {/* Root gradient */}
+                  <LinearGradient id="rootGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#7C5CFC" />
+                    <Stop offset="1" stopColor="#B4A0FF" />
+                  </LinearGradient>
+                  {/* Shadows */}
+                  <Filter id="sh" x="-8%" y="-8%" width="120%" height="130%">
+                    <FeDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#7C5CFC" floodOpacity="0.08" />
                   </Filter>
-                  <Filter id="shR" x="-5%" y="-5%" width="115%" height="125%">
-                    <FeDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#6C5CE7" floodOpacity="0.2" />
+                  <Filter id="shR" x="-8%" y="-8%" width="120%" height="130%">
+                    <FeDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#7C5CFC" floodOpacity="0.22" />
+                  </Filter>
+                  <Filter id="shBtn" x="-15%" y="-15%" width="135%" height="145%">
+                    <FeDropShadow dx="0" dy="1" stdDeviation="3" floodColor="#7C5CFC" floodOpacity="0.18" />
                   </Filter>
                 </Defs>
+
+                {/* Background decorative blobs */}
+                <Circle cx={cw * 0.15} cy={ch * 0.2} r={80} fill={Colors.blobPurple} />
+                <Circle cx={cw * 0.75} cy={ch * 0.7} r={100} fill={Colors.blobBlue} />
+                <Circle cx={cw * 0.5} cy={ch * 0.15} r={60} fill={Colors.blobPink} />
+                <Circle cx={cw * 0.85} cy={ch * 0.3} r={50} fill={Colors.blobPurple} />
 
                 {/* Connections */}
                 {visibleNodes.map((node) => {
@@ -216,15 +195,27 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   const sy = pL.y + pL.height / 2;
                   const ex = cL.x;
                   const ey = cL.y + cL.height / 2;
-                  const dx = (ex - sx) * 0.5;
+
+                  // Organic bezier: uốn lượn tự nhiên hơn
+                  const dx = ex - sx;
+                  const dy = ey - sy;
+                  const cp1x = sx + dx * 0.4;
+                  const cp1y = sy + dy * 0.05;
+                  const cp2x = ex - dx * 0.35;
+                  const cp2y = ey - dy * 0.05;
+
+                  const branchIdx = cL.branchIndex;
+                  const branchColor = branchIdx >= 0 ? BranchColors[branchIdx % BranchColors.length]?.accent : Colors.connectionLine;
+
                   return (
                     <Path
                       key={`c-${node.id}`}
-                      d={`M${sx},${sy} C${sx + dx},${sy} ${ex - dx},${ey} ${ex},${ey}`}
+                      d={`M${sx},${sy} C${cp1x},${cp1y} ${cp2x},${cp2y} ${ex},${ey}`}
                       fill="none"
-                      stroke={Colors.connectionLine}
-                      strokeWidth={1.5}
+                      stroke={branchColor}
+                      strokeWidth={2}
                       strokeLinecap="round"
+                      opacity={0.35}
                     />
                   );
                 })}
@@ -234,14 +225,20 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   const nl = layout[node.id] as LayoutNode;
                   const isRoot = node.id === data.rootId;
                   const { width: w, height: h } = nl;
-                  const bgColor = node.color;
+                  const branchIdx = nl.branchIndex;
+                  const branchTheme = branchIdx >= 0 ? BranchColors[branchIdx % BranchColors.length] : null;
+
+                  const bgColor = isRoot ? 'url(#rootGrad)' : (node.color || '#FFFFFF');
                   const txtColor = node.textColor || Colors.textDark;
                   const rx = isRoot ? NodeConfig.rootRadius : (
                     node.parentId && node.parentId !== data.rootId ? NodeConfig.subNodeRadius : NodeConfig.nodeRadius
                   );
 
+                  const borderColor = isRoot ? 'transparent' : (branchTheme?.border || Colors.nodeBorder);
+
                   return (
                     <G key={node.id}>
+                      {/* Node card */}
                       <Rect
                         x={nl.x} y={nl.y} width={w} height={h}
                         rx={rx} ry={rx}
@@ -253,14 +250,31 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                           x={nl.x} y={nl.y} width={w} height={h}
                           rx={rx} ry={rx}
                           fill="transparent"
-                          stroke={Colors.nodeBorder}
-                          strokeWidth={1}
+                          stroke={borderColor}
+                          strokeWidth={1.2}
                         />
                       )}
+
+                      {/* Left accent bar for branch nodes */}
+                      {!isRoot && node.parentId === data.rootId && branchTheme && (
+                        <Rect
+                          x={nl.x} y={nl.y + 6}
+                          width={3} height={h - 12}
+                          rx={1.5} ry={1.5}
+                          fill={branchTheme.accent}
+                          opacity={0.6}
+                        />
+                      )}
+
+                      {/* Text */}
                       <ForeignObject x={nl.x} y={nl.y} width={w} height={h}>
-                        <View style={styles.nodeLabel}>
+                        <View style={[styles.nodeLabel, isRoot && { paddingHorizontal: 12 }]}>
                           <Text
-                            style={[styles.nodeText, { color: txtColor }, isRoot && styles.rootText]}
+                            style={[
+                              styles.nodeText,
+                              { color: txtColor },
+                              isRoot && styles.rootText,
+                            ]}
                             numberOfLines={2}
                           >
                             {node.text}
@@ -269,7 +283,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                       </ForeignObject>
 
                       {/* Add button */}
-                      <ForeignObject x={nl.x + w + 2} y={nl.y + h / 2 - 9} width={20} height={20}>
+                      <ForeignObject x={nl.x + w + 3} y={nl.y + h / 2 - 10} width={22} height={22}>
                         <TouchableOpacity onPress={() => addChild(node.id)} style={styles.addBtn} activeOpacity={0.7}>
                           <Text style={styles.addIco}>+</Text>
                         </TouchableOpacity>
@@ -277,7 +291,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
 
                       {/* Collapse toggle */}
                       {node.children.length > 0 && (
-                        <ForeignObject x={nl.x + w - 20} y={nl.y + h / 2 - 9} width={18} height={18}>
+                        <ForeignObject x={nl.x + w - 18} y={nl.y + h / 2 - 8} width={16} height={16}>
                           <TouchableOpacity onPress={() => toggleCollapse(node.id)} style={styles.colBtn} activeOpacity={0.7}>
                             <Text style={styles.colIco}>{node.collapsed ? '▾' : '▴'}</Text>
                           </TouchableOpacity>
@@ -305,42 +319,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
   },
   nodeText: {
     fontSize: 11,
     textAlign: 'center',
     color: Colors.textDark,
+    lineHeight: 14,
   },
   rootText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+    lineHeight: 17,
   },
   addBtn: {
     width: NodeConfig.addButtonSize,
     height: NodeConfig.addButtonSize,
     borderRadius: NodeConfig.addButtonSize / 2,
-    backgroundColor: Colors.addButton,
+    backgroundColor: Colors.addButtonLight,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addIco: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
     marginTop: -1,
   },
   colBtn: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#F0EDFF',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F5F2FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   colIco: {
-    fontSize: 9,
+    fontSize: 8,
     color: Colors.primary,
     marginTop: -1,
   },
