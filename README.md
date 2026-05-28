@@ -1,6 +1,8 @@
 # MindMapDemo
 
-Ứng dụng React Native (Expo) minh họa màn hình **Mind Map** cho bài học Lịch sử 10 - Kháng chiến chống thực dân Pháp (1946-1954).
+Ứng dụng React Native (Expo) minh họa màn hình **Mind Map** cho bài học **Lịch sử 10 - Kháng chiến chống thực dân Pháp (1946-1954)**.
+
+Giao diện hiện đại với organic bezier curves, gradient node gốc, 6 tone màu pastel cho từng nhánh, decorative background blobs, soft shadows và fully responsive trên desktop lẫn mobile.
 
 ---
 
@@ -52,12 +54,12 @@ MindMapDemo/
     ├── types/
     │   └── mindmap.ts                   # Kiểu dữ liệu MindMapNode, MindMapData
     ├── constants/
-    │   └── theme.ts                     # Màu sắc, kích thước node
+    │   └── theme.ts                     # Màu sắc, kích thước node, BranchColors
     ├── utils/
-    │   └── layout.ts                    # Layout algorithm + dữ liệu bài học
+    │   └── layout.ts                    # Layout algorithm + normalize + dữ liệu bài học
     ├── components/
     │   └── MindMap/
-    │       └── index.tsx                # Component chính (SVG + Pan/Zoom)
+    │       └── index.tsx                # Component chính (SVG + Pan/Zoom + Auto-fit)
     └── screens/
         └── MindMapScreen.tsx            # Màn hình (Header + Map + Toolbar)
 ```
@@ -68,13 +70,47 @@ MindMapDemo/
 
 | Tính năng | Mô tả |
 |-----------|-------|
-| Mind Map tương tác | Sơ đồ phân nhánh với node gốc xanh dương, 5 nhánh chính |
-| Thêm node con | Nhấn nút **"+"** xanh ở góc trên phải mỗi node |
-| Thu gọn / Mở rộng | Nhấn nút **▴ / ▾** trên node có nhánh con |
-| Kéo (Pan) | Vuốt một ngón để di chuyển sơ đồ |
-| Phóng to / Thu nhỏ (Zoom) | Pinch hai ngón hoặc cuộn chuột (trên web) |
-| Auto-fit | Tự động scale vừa màn hình khi mở / thu gọn nhánh |
-| Responsive | Hiển thị tốt trên cả desktop lẫn mobile |
+| **Mind Map tương tác** | Sơ đồ phân nhánh organic với node gốc gradient tím, 5 nhánh pastel |
+| **Thêm node con** | Nhấn nút **"+"** viền tím bên phải mỗi node |
+| **Thu gọn / Mở rộng** | Nhấn nút **▴ / ▾** trên node có nhánh con |
+| **Kéo (Pan)** | Vuốt một ngón để di chuyển sơ đồ |
+| **Phóng to / Thu nhỏ (Zoom)** | Pinch hai ngón hoặc cuộn chuột (trên web) |
+| **Auto-fit** | Tự động scale vừa màn hình, tự re-fit khi expand/collapse/thêm node |
+| **Fit View button** | Nút scan trên toolbar → reset pan/zoom về auto-fit |
+| **Responsive** | Hiển thị tốt trên desktop, mobile, web |
+| **Coordinate normalization** | Tọa độ chuẩn hóa dương → không bị cắt ở mép |
+| **Organic layout** | Nhánh lệch nhẹ lên/xuống tạo cảm giác tự nhiên |
+
+---
+
+## Giao diện
+
+### Header
+
+- Thanh màu tím gradient
+- Avatar + pills (huy hiệu, coin, streak fire)
+- Breadcrumb: "LỊCH SỬ 10 > CHƯƠNG I"
+- Tiêu đề bài học + subtitle "Mind map"
+
+### Mind Map
+
+- Node gốc: gradient tím, bo góc pill, shadow tím soft
+- Node nhánh chính: nền pastel, viền theo tone nhánh, left accent bar
+- Node con: nền trắng, viền nhạt, bo góc mềm
+- Đường nối: organic bezier curve, màu theo tone nhánh, opacity nhẹ
+- Background: decorative blobs pastel tạo chiều sâu
+- Toolbar góc trên phải: nút fit view + menu
+
+### Bảng màu 6 nhánh
+
+| Nhánh | Nền | Viền | Accent | Tone |
+|-------|-----|------|--------|------|
+| 1 | `#F0EDFF` | `#D5CCFF` | `#7C5CFC` | Tím nhạt |
+| 2 | `#EDF7FF` | `#C8E2FF` | `#0984E3` | Xanh dương nhạt |
+| 3 | `#FFF5EC` | `#FFE0C2` | `#E17055` | Cam nhạt |
+| 4 | `#EDFFF4` | `#C8F5D8` | `#00B894` | Xanh lá nhạt |
+| 5 | `#FFF8E1` | `#FFECB3` | `#FDCB6E` | Vàng nhạt |
+| 6 | `#FFF0F5` | `#FFC8D9` | `#FD79A8` | Hồng nhạt |
 
 ---
 
@@ -84,28 +120,28 @@ Bài: **Kháng chiến chống thực dân Pháp (1946 - 1954)** - Lịch sử 1
 
 ```
 Kháng chiến chống Pháp (1946-1954)
-├── Bối cảnh lịch sử
-│   ├── Pháp quay lại xâm lược VN sau CTTG2
+├── Bối cảnh lịch sử (tím nhạt)
+│   ├── Pháp quay lại xâm lược VN
 │   ├── Hiệp định Sơ bộ 6/3/1946
 │   └── Tạm ước 14/9/1946
-├── Đường lối kháng chiến
+├── Đường lối kháng chiến (xanh dương nhạt)
 │   ├── Toàn dân
 │   ├── Toàn diện
 │   ├── Trường kỳ
 │   └── Tự lực cánh sinh
-├── Diễn biến chính
-│   ├── Toàn quốc kháng chiến 19/12/1946
-│   ├── Chiến dịch Việt Bắc 1947
-│   ├── Chiến dịch Biên Giới 1950
-│   └── Chiến dịch Điện Biên Phủ 1954
-├── Kết quả
-│   ├── Chiến thắng Điện Biên Phủ lịch sử
+├── Diễn biến chính (cam nhạt)
+│   ├── Toàn quốc kháng chiến 12/1946
+│   ├── Việt Bắc Thu - Đông 1947
+│   ├── Biên Giới Thu - Đông 1950
+│   └── Điện Biên Phủ 1954
+├── Kết quả (xanh lá nhạt)
+│   ├── Chiến thắng ĐBP lịch sử
 │   ├── Hiệp định Genève 7/1954
-│   └── Giải phóng hoàn toàn miền Bắc
-└── Ý nghĩa lịch sử
-    ├── Củng cố chính quyền dân chủ nhân dân
-    ├── Tạo tiền đề thống nhất đất nước
-    └── Cổ vũ phong trào GPDT thế giới
+│   └── Giải phóng miền Bắc
+└── Ý nghĩa lịch sử (vàng nhạt)
+    ├── Củng cố chính quyền
+    ├── Tiền đề thống nhất
+    └── Cổ vũ GPDT thế giới
 ```
 
 ---
@@ -118,6 +154,7 @@ Kháng chiến chống Pháp (1946-1954)
 interface MindMapNode {
   id: string;              // ID duy nhất
   text: string;            // Nội dung hiển thị
+  subtitle?: string;       // Phụ đề (tuỳ chọn)
   color: string;           // Màu nền
   textColor?: string;      // Màu chữ
   children: string[];      // ID các node con
@@ -129,16 +166,26 @@ interface MindMapNode {
 ### Layout algorithm
 
 - Root nằm bên trái, nhánh mở sang phải
-- Mỗi level cách `horizontalGap` (45px)
-- Node cùng cấp xếp dọc, cách `verticalGap` (10px)
+- Mỗi level cách `horizontalGap` (48px)
+- Node cùng cấp xếp dọc, cách `verticalGap` (14px)
+- Organic offset: nhánh con lệch nhẹ lên/xuần tạo cảm giác tự nhiên
 - Chiều cao subtree tính đệ quy → node cha luôn nằm giữa các con
 
-### Rendering
+### Coordinate normalization
 
-- **SVG** vẽ node, đường nối bezier, shadow
-- **react-native-gesture-handler** xử lý pan & pinch
-- **react-native-reanimated** animate transform mượt
-- Auto-fit tính scale & offset dựa trên kích thước container thực tế
+1. Layout tính raw positions
+2. `normalizeLayout()` dịch toàn bộ tọa độ về vùng dương (bắt đầu từ 48, 48)
+3. Bounds bao gồm nút "+", collapse button, shadow, bezier curves
+4. Auto-fit tính scale & offset dựa trên normalized content size
+5. Không có tọa độ âm → SVG không cắt nội dung
+
+### Rendering pipeline
+
+- **SVG** vẽ node (gradient, shadow, accent bar), đường nối bezier organic, decorative blobs
+- **react-native-gesture-handler** xử lý pan & pinch (simultaneous)
+- **react-native-reanimated** animate transform mượt với `withTiming`
+- Auto-fit tính scale & offset dựa trên kích thước container thực tế (`onLayout`)
+- Nút "+" viền tím nền nhạt, collapse button nền tím nhạt
 
 ---
 
@@ -152,7 +199,7 @@ Sửa hàm `createInitialData()` trong `src/utils/layout.ts`:
 [rootId]: {
   id: rootId,
   text: 'Tên bài học mới',
-  color: '#4A7BF7',
+  color: '#7C5CFC',       // Gradient tím (root)
   textColor: '#FFFFFF',
   children: [branch1, branch2],
   parentId: null,
@@ -160,17 +207,7 @@ Sửa hàm `createInitialData()` trong `src/utils/layout.ts`:
 },
 ```
 
-### Bảng màu
-
-| Màu hex | Dùng cho |
-|---------|----------|
-| `#4A7BF7` | Node gốc (xanh dương) |
-| `#FFF7ED` | Nhánh - cam nhạt |
-| `#F0FDF4` | Nhánh - xanh lá nhạt |
-| `#FDF2F8` | Nhánh - hồng nhạt |
-| `#FEF9C3` | Nhánh - vàng nhạt |
-| `#F5F3FF` | Nhánh - tím nhạt |
-| `#FFFFFF` | Node lá |
+Màu nhánh tự map qua `BranchColors` trong `theme.ts`.
 
 ### Đổi kích thước node
 
@@ -178,14 +215,17 @@ Sửa `NodeConfig` trong `src/constants/theme.ts`:
 
 ```ts
 export const NodeConfig = {
-  rootWidth: 180,       // Rộng node gốc
+  rootWidth: 164,       // Rộng node gốc
   rootHeight: 48,       // Cao node gốc
-  nodeWidth: 130,       // Rộng node nhánh
-  nodeHeight: 40,       // Cao node nhánh
-  subNodeWidth: 120,    // Rộng node lá
+  rootRadius: 24,       // Bo góc node gốc
+  nodeWidth: 132,       // Rộng node nhánh
+  nodeHeight: 42,       // Cao node nhánh
+  nodeRadius: 14,       // Bo góc node nhánh
+  subNodeWidth: 122,    // Rộng node lá
   subNodeHeight: 36,    // Cao node lá
-  horizontalGap: 45,    // Khoảng cách ngang
-  verticalGap: 10,      // Khoảng cách dọc
+  subNodeRadius: 12,    // Bo góc node lá
+  horizontalGap: 48,    // Khoảng cách ngang
+  verticalGap: 14,      // Khoảng cách dọc
 };
 ```
 
@@ -197,9 +237,9 @@ export const NodeConfig = {
 |----------|-----------|---------|
 | Expo SDK | ~52 | Framework chính |
 | React Native | ~0.76 | UI framework |
-| react-native-svg | ~15.8 | Vẽ SVG (node, đường nối, shadow) |
+| react-native-svg | ~15.8 | Vẽ SVG (node, bezier, gradient, shadow, blobs) |
 | react-native-gesture-handler | ~2.20 | Pan & pinch gesture |
-| react-native-reanimated | ~3.16 | Animation zoom/pan |
+| react-native-reanimated | ~3.16 | Animation zoom/pan mượt |
 | TypeScript | ~5.3 | Type safety |
 
 ---
