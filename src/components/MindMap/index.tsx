@@ -25,6 +25,14 @@ interface Props {
   onFitReady?: (fitFn: () => void) => void;
 }
 
+// Extra space beyond node edges: button size, shadow spread, bezier overshoot
+const EXTRA_LEFT = 12;
+const EXTRA_RIGHT = NodeConfig.addButtonSize + 8;   // "+" button + gap
+const EXTRA_TOP = 14;   // shadow + collapse button half
+const EXTRA_BOTTOM = 14;
+const SAFE_PAD_DESKTOP = 40;
+const SAFE_PAD_MOBILE = 24;
+
 function isVisible(data: MindMapData, node: MindMapNode): boolean {
   let current = node.parentId;
   while (current) {
@@ -32,6 +40,20 @@ function isVisible(data: MindMapData, node: MindMapNode): boolean {
     current = data.nodes[current]?.parentId;
   }
   return true;
+}
+
+function getExpandedBounds(layout: Record<string, LayoutNode>): {
+  minX: number; minY: number; maxX: number; maxY: number;
+} {
+  const all = Object.values(layout);
+  if (all.length === 0) return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+
+  const minX = Math.min(...all.map((n) => n.x)) - EXTRA_LEFT;
+  const minY = Math.min(...all.map((n) => n.y)) - EXTRA_TOP;
+  const maxX = Math.max(...all.map((n) => n.x + n.width)) + EXTRA_RIGHT;
+  const maxY = Math.max(...all.map((n) => n.y + n.height)) + EXTRA_BOTTOM;
+
+  return { minX, minY, maxX, maxY };
 }
 
 export default function MindMap({ data, onDataChange, onFitReady }: Props) {
@@ -54,20 +76,15 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
 
   const computeFit = useCallback(() => {
     if (containerSize.width === 0 || containerSize.height === 0) return;
-    const allLayouts = Object.values(layout);
-    if (allLayouts.length === 0) return;
 
-    const minX = Math.min(...allLayouts.map((n) => n.x));
-    const minY = Math.min(...allLayouts.map((n) => n.y));
-    const maxX = Math.max(...allLayouts.map((n) => n.x + n.width));
-    const maxY = Math.max(...allLayouts.map((n) => n.y + n.height));
-
+    const { minX, minY, maxX, maxY } = getExpandedBounds(layout);
     const contentW = maxX - minX;
     const contentH = maxY - minY;
     if (contentW <= 0 || contentH <= 0) return;
 
     const isMobile = containerSize.width < 768;
-    const pad = isMobile ? 20 : 40;
+    const pad = isMobile ? SAFE_PAD_MOBILE : SAFE_PAD_DESKTOP;
+
     const fitScale = Math.min(
       (containerSize.width - pad * 2) / contentW,
       (containerSize.height - pad * 2) / contentH,
@@ -76,6 +93,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     const clamped = Math.max(isMobile ? 0.35 : 0.4, fitScale);
     fitScaleRef.current = clamped;
 
+    // Center expanded content in container
     const offX = (containerSize.width - contentW * clamped) / 2 - minX * clamped;
     const offY = (containerSize.height - contentH * clamped) / 2 - minY * clamped;
 
@@ -161,24 +179,19 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
             <Animated.View style={[StyleSheet.absoluteFill, animStyle]}>
               <Svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
                 <Defs>
-                  {/* Root gradient */}
                   <LinearGradient id="rootGrad" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0" stopColor="#7C5CFC" />
                     <Stop offset="1" stopColor="#B4A0FF" />
                   </LinearGradient>
-                  {/* Shadows */}
-                  <Filter id="sh" x="-8%" y="-8%" width="120%" height="130%">
+                  <Filter id="sh" x="-10%" y="-10%" width="125%" height="135%">
                     <FeDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#7C5CFC" floodOpacity="0.08" />
                   </Filter>
-                  <Filter id="shR" x="-8%" y="-8%" width="120%" height="130%">
+                  <Filter id="shR" x="-10%" y="-10%" width="125%" height="135%">
                     <FeDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#7C5CFC" floodOpacity="0.22" />
-                  </Filter>
-                  <Filter id="shBtn" x="-15%" y="-15%" width="135%" height="145%">
-                    <FeDropShadow dx="0" dy="1" stdDeviation="3" floodColor="#7C5CFC" floodOpacity="0.18" />
                   </Filter>
                 </Defs>
 
-                {/* Background decorative blobs */}
+                {/* Decorative blobs */}
                 <Circle cx={cw * 0.15} cy={ch * 0.2} r={80} fill={Colors.blobPurple} />
                 <Circle cx={cw * 0.75} cy={ch * 0.7} r={100} fill={Colors.blobBlue} />
                 <Circle cx={cw * 0.5} cy={ch * 0.15} r={60} fill={Colors.blobPink} />
@@ -195,14 +208,8 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   const sy = pL.y + pL.height / 2;
                   const ex = cL.x;
                   const ey = cL.y + cL.height / 2;
-
-                  // Organic bezier: uốn lượn tự nhiên hơn
                   const dx = ex - sx;
                   const dy = ey - sy;
-                  const cp1x = sx + dx * 0.4;
-                  const cp1y = sy + dy * 0.05;
-                  const cp2x = ex - dx * 0.35;
-                  const cp2y = ey - dy * 0.05;
 
                   const branchIdx = cL.branchIndex;
                   const branchColor = branchIdx >= 0 ? BranchColors[branchIdx % BranchColors.length]?.accent : Colors.connectionLine;
@@ -210,7 +217,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   return (
                     <Path
                       key={`c-${node.id}`}
-                      d={`M${sx},${sy} C${cp1x},${cp1y} ${cp2x},${cp2y} ${ex},${ey}`}
+                      d={`M${sx},${sy} C${sx + dx * 0.4},${sy + dy * 0.05} ${ex - dx * 0.35},${ey - dy * 0.05} ${ex},${ey}`}
                       fill="none"
                       stroke={branchColor}
                       strokeWidth={2}
@@ -233,12 +240,10 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   const rx = isRoot ? NodeConfig.rootRadius : (
                     node.parentId && node.parentId !== data.rootId ? NodeConfig.subNodeRadius : NodeConfig.nodeRadius
                   );
-
                   const borderColor = isRoot ? 'transparent' : (branchTheme?.border || Colors.nodeBorder);
 
                   return (
                     <G key={node.id}>
-                      {/* Node card */}
                       <Rect
                         x={nl.x} y={nl.y} width={w} height={h}
                         rx={rx} ry={rx}
@@ -254,27 +259,16 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                           strokeWidth={1.2}
                         />
                       )}
-
-                      {/* Left accent bar for branch nodes */}
                       {!isRoot && node.parentId === data.rootId && branchTheme && (
                         <Rect
-                          x={nl.x} y={nl.y + 6}
-                          width={3} height={h - 12}
-                          rx={1.5} ry={1.5}
-                          fill={branchTheme.accent}
-                          opacity={0.6}
+                          x={nl.x} y={nl.y + 6} width={3} height={h - 12}
+                          rx={1.5} ry={1.5} fill={branchTheme.accent} opacity={0.6}
                         />
                       )}
-
-                      {/* Text */}
                       <ForeignObject x={nl.x} y={nl.y} width={w} height={h}>
                         <View style={[styles.nodeLabel, isRoot && { paddingHorizontal: 12 }]}>
                           <Text
-                            style={[
-                              styles.nodeText,
-                              { color: txtColor },
-                              isRoot && styles.rootText,
-                            ]}
+                            style={[styles.nodeText, { color: txtColor }, isRoot && styles.rootText]}
                             numberOfLines={2}
                           >
                             {node.text}
@@ -282,16 +276,16 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                         </View>
                       </ForeignObject>
 
-                      {/* Add button */}
-                      <ForeignObject x={nl.x + w + 3} y={nl.y + h / 2 - 10} width={22} height={22}>
+                      {/* Add button - bên phải node */}
+                      <ForeignObject x={nl.x + w + 3} y={nl.y + h / 2 - 10} width={24} height={24}>
                         <TouchableOpacity onPress={() => addChild(node.id)} style={styles.addBtn} activeOpacity={0.7}>
                           <Text style={styles.addIco}>+</Text>
                         </TouchableOpacity>
                       </ForeignObject>
 
-                      {/* Collapse toggle */}
+                      {/* Collapse toggle - trong node, góc phải */}
                       {node.children.length > 0 && (
-                        <ForeignObject x={nl.x + w - 18} y={nl.y + h / 2 - 8} width={16} height={16}>
+                        <ForeignObject x={nl.x + w - 20} y={nl.y + h / 2 - 8} width={18} height={18}>
                           <TouchableOpacity onPress={() => toggleCollapse(node.id)} style={styles.colBtn} activeOpacity={0.7}>
                             <Text style={styles.colIco}>{node.collapsed ? '▾' : '▴'}</Text>
                           </TouchableOpacity>
@@ -350,15 +344,15 @@ const styles = StyleSheet.create({
     marginTop: -1,
   },
   colBtn: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#F5F2FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   colIco: {
-    fontSize: 8,
+    fontSize: 9,
     color: Colors.primary,
     marginTop: -1,
   },
