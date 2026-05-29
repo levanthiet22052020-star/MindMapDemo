@@ -23,6 +23,7 @@ interface Props {
   data: MindMapData;
   onDataChange: (data: MindMapData) => void;
   onFitReady?: (fitFn: () => void) => void;
+  onZoomControlsReady?: (controls: { zoomIn: () => void; zoomOut: () => void }) => void;
 }
 
 interface NormalizedNode {
@@ -84,7 +85,7 @@ function normalizeLayout(rawLayout: Record<string, LayoutNode>): {
   return { nodes, contentWidth, contentHeight };
 }
 
-export default function MindMap({ data, onDataChange, onFitReady }: Props) {
+export default function MindMap({ data, onDataChange, onFitReady, onZoomControlsReady }: Props) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -141,6 +142,56 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
   useEffect(() => {
     if (onFitReady) onFitReady(() => { userInteracted.current = false; computeFit(); });
   }, [computeFit, onFitReady]);
+
+  // Zoom in/out functions
+  const ZOOM_FACTOR = 1.3;
+
+  const zoomIn = useCallback(() => {
+    const minS = fitScaleRef.current * 0.3;
+    const maxS = Math.max(fitScaleRef.current * 3, 3);
+    const newScale = Math.min(maxS, savedScale.value * ZOOM_FACTOR);
+
+    // Zoom toward center of container
+    const cx = containerSize.width / 2;
+    const cy = containerSize.height / 2;
+    const ratio = newScale / savedScale.value;
+
+    const newTX = cx - ratio * (cx - savedTX.value);
+    const newTY = cy - ratio * (cy - savedTY.value);
+
+    scale.value = withTiming(newScale, { duration: 250 });
+    savedScale.value = newScale;
+    translateX.value = withTiming(newTX, { duration: 250 });
+    savedTX.value = newTX;
+    translateY.value = withTiming(newTY, { duration: 250 });
+    savedTY.value = newTY;
+    userInteracted.current = true;
+  }, [containerSize]);
+
+  const zoomOut = useCallback(() => {
+    const minS = fitScaleRef.current * 0.3;
+    const newScale = Math.max(minS, savedScale.value / ZOOM_FACTOR);
+
+    // Zoom toward center of container
+    const cx = containerSize.width / 2;
+    const cy = containerSize.height / 2;
+    const ratio = newScale / savedScale.value;
+
+    const newTX = cx - ratio * (cx - savedTX.value);
+    const newTY = cy - ratio * (cy - savedTY.value);
+
+    scale.value = withTiming(newScale, { duration: 250 });
+    savedScale.value = newScale;
+    translateX.value = withTiming(newTX, { duration: 250 });
+    savedTX.value = newTX;
+    translateY.value = withTiming(newTY, { duration: 250 });
+    savedTY.value = newTY;
+    userInteracted.current = true;
+  }, [containerSize]);
+
+  useEffect(() => {
+    if (onZoomControlsReady) onZoomControlsReady({ zoomIn, zoomOut });
+  }, [zoomIn, zoomOut, onZoomControlsReady]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {

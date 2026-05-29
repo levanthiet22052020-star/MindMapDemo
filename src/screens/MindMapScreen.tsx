@@ -16,44 +16,40 @@ import { Colors } from '../constants/theme';
 export default function MindMapScreen() {
   const [data, setData] = useState<MindMapData>(createInitialData());
   const fitViewFn = useRef<(() => void) | null>(null);
+  const zoomInFn = useRef<(() => void) | null>(null);
+  const zoomOutFn = useRef<(() => void) | null>(null);
 
   const onFitReady = useCallback((fitFn: () => void) => {
     fitViewFn.current = fitFn;
+  }, []);
+
+  const onZoomControlsReady = useCallback((controls: { zoomIn: () => void; zoomOut: () => void }) => {
+    zoomInFn.current = controls.zoomIn;
+    zoomOutFn.current = controls.zoomOut;
   }, []);
 
   const handleFit = useCallback(() => {
     fitViewFn.current?.();
   }, []);
 
+  const handleZoomIn = useCallback(() => {
+    zoomInFn.current?.();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    zoomOutFn.current?.();
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.headerTopBg} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#FFF" />
+          <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color="#8D99AE" />
           </TouchableOpacity>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>Đ</Text>
-          </View>
-          <View style={styles.pills}>
-            <View style={styles.pill}>
-              <Ionicons name="ribbon-outline" size={12} color="#FFF" />
-              <Text style={styles.pillText}>Đồng I</Text>
-            </View>
-            <View style={styles.pill}>
-              <Ionicons name="wallet-outline" size={12} color={Colors.pillText} />
-              <Text style={[styles.pillText, { color: Colors.pillText }]}>1,250</Text>
-            </View>
-            <View style={styles.pill}>
-              <Ionicons name="flame-outline" size={12} color={Colors.fireOrange} />
-              <Text style={[styles.pillText, { color: Colors.fireOrange }]}>5</Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.breadcrumbRow}>
           <Text style={styles.breadcrumb}>LỊCH SỬ 10 {'>'} CHƯƠNG I</Text>
         </View>
         <View style={styles.titleRow}>
@@ -68,11 +64,20 @@ export default function MindMapScreen() {
           <TouchableOpacity onPress={handleFit} style={styles.toolBtn} activeOpacity={0.7}>
             <Ionicons name="scan-outline" size={20} color={Colors.primary} />
           </TouchableOpacity>
+          <View style={styles.zoomGroup}>
+            <TouchableOpacity onPress={handleZoomIn} style={styles.zoomBtn} activeOpacity={0.7}>
+              <Ionicons name="add" size={22} color={Colors.primary} />
+            </TouchableOpacity>
+            <View style={styles.zoomDivider} />
+            <TouchableOpacity onPress={handleZoomOut} style={styles.zoomBtn} activeOpacity={0.7}>
+              <Ionicons name="remove" size={22} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
             <Ionicons name="ellipsis-vertical" size={20} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
-        <MindMap data={data} onDataChange={setData} onFitReady={onFitReady} />
+        <MindMap data={data} onDataChange={setData} onFitReady={onFitReady} onZoomControlsReady={onZoomControlsReady} />
       </View>
     </SafeAreaView>
   );
@@ -81,57 +86,39 @@ export default function MindMapScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.headerBg,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: Colors.headerBg,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 4,
   },
-  backBtn: { padding: 2 },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+  backBtn: {
+    padding: 2,
+    marginLeft: -4,
   },
-  avatarText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
-  pills: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.pillBg,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 3,
-  },
-  pillText: { color: '#FFF', fontSize: 11, fontWeight: '600' },
-  breadcrumbRow: { marginTop: 10, marginLeft: 4 },
   breadcrumb: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    color: '#8D99AE',
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
-  titleRow: { marginTop: 4, marginLeft: 4 },
-  title: { color: '#FFF', fontSize: 18, fontWeight: '700' },
-  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 },
+  titleRow: { marginTop: 6, marginLeft: 0 },
+  title: { color: '#2B2D42', fontSize: 20, fontWeight: '700' },
+  subtitle: { color: '#8D99AE', fontSize: 12, marginTop: 2 },
   mapContainer: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -157,5 +144,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
+  },
+  zoomGroup: {
+    backgroundColor: '#FFF',
+    borderRadius: 19,
+    elevation: 4,
+    shadowColor: '#7C5CFC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    overflow: 'hidden',
+  },
+  zoomBtn: {
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomDivider: {
+    height: 1,
+    backgroundColor: '#F0EDFF',
+    marginHorizontal: 6,
   },
 });
