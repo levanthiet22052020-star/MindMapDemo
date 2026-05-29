@@ -27,7 +27,6 @@ export default function MindMapNodeComponent({
   const textColor = node.textColor || Colors.textDark;
 
   const hasChildren = node.children.length > 0;
-  const isDetail = node.color === Colors.nodeDetail;
 
   return (
     <G>
@@ -59,3 +58,4 @@ export default function MindMapNodeComponent({
     </G>
   );
 }
+

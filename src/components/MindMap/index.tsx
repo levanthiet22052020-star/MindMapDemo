@@ -46,7 +46,7 @@ function isVisible(data: MindMapData, node: MindMapNode): boolean {
   return true;
 }
 
-// Chuẩn hóa: dịch toàn bộ layout về vùng dương, bắt đầu từ (SAFE_PAD, SAFE_PAD)
+// ChuÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â©n hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³a: dÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ch toÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â n bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ layout vÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ng dÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â Ãƒâ€šÃ‚Â¡ng, bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¯t ÃƒÆ’Ã¢â‚¬Å¾ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â§u tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â« (SAFE_PAD, SAFE_PAD)
 function normalizeLayout(rawLayout: Record<string, LayoutNode>): {
   nodes: Record<string, NormalizedNode>;
   contentWidth: number;
@@ -62,7 +62,7 @@ function normalizeLayout(rawLayout: Record<string, LayoutNode>): {
   const rawMaxX = Math.max(...all.map((n) => n.x + n.width));
   const rawMaxY = Math.max(...all.map((n) => n.y + n.height));
 
-  // Offset dịch về (SAFE_PAD, SAFE_PAD)
+  // Offset dÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ch vÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â (SAFE_PAD, SAFE_PAD)
   const offX = SAFE_PAD - rawMinX;
   const offY = SAFE_PAD - rawMinY;
 
@@ -177,7 +177,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     const nodes = { ...data.nodes };
     nodes[nodeId] = { ...nodes[nodeId], collapsed: !nodes[nodeId].collapsed };
     onDataChange({ ...data, nodes });
-    userInteracted.current = false;
+    userInteracted.current = true;
   }, [data, onDataChange]);
 
   const addChild = useCallback((parentId: string) => {
@@ -186,20 +186,20 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
     const nodes = {
       ...data.nodes,
       [parentId]: { ...parent, children: [...parent.children, newId] },
-      [newId]: { id: newId, text: 'Node mới', x: 0, y: 0, color: '#FFFFFF', children: [], parentId, collapsed: false } as MindMapNode,
+      [newId]: { id: newId, text: 'Node m\u1edbi', x: 0, y: 0, color: '#FFFFFF', children: [], parentId, collapsed: false } as MindMapNode,
     };
     onDataChange({ ...data, nodes });
-    userInteracted.current = false;
+    userInteracted.current = true;
   }, [data, onDataChange]);
 
   const visibleNodes = Object.values(data.nodes).filter(
     (n) => normalizedNodes[n.id] && isVisible(data, n),
   );
 
-  const cw = containerSize.width || 400;
-  const ch = containerSize.height || 400;
+  const cw = Math.max(containerSize.width || 400, contentWidth);
+  const ch = Math.max(containerSize.height || 400, contentHeight);
 
-  // Helper: lấy normalized layout cho 1 node
+  // Helper: lÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¥y normalized layout cho 1 node
   const nl = (id: string) => normalizedNodes[id]!;
 
   return (
@@ -228,7 +228,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                 <Circle cx={cw * 0.5} cy={ch * 0.15} r={60} fill={Colors.blobPink} />
                 <Circle cx={cw * 0.85} cy={ch * 0.3} r={50} fill={Colors.blobPurple} />
 
-                {/* Connections - dùng tọa độ normalized */}
+                {/* Connections - dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ng tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Âa ÃƒÆ’Ã¢â‚¬Å¾ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ normalized */}
                 {visibleNodes.map((node) => {
                   if (!node.parentId) return null;
                   const p = nl(node.parentId);
@@ -259,7 +259,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                   );
                 })}
 
-                {/* Nodes - dùng tọa độ normalized */}
+                {/* Nodes - dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ng tÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Âa ÃƒÆ’Ã¢â‚¬Å¾ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ normalized */}
                 {visibleNodes.map((node) => {
                   const n = nl(node.id);
                   const isRoot = node.id === data.rootId;
@@ -317,7 +317,7 @@ export default function MindMap({ data, onDataChange, onFitReady }: Props) {
                       {node.children.length > 0 && (
                         <ForeignObject x={n.x + w - 20} y={n.y + h / 2 - 8} width={18} height={18}>
                           <TouchableOpacity onPress={() => toggleCollapse(node.id)} style={styles.colBtn} activeOpacity={0.7}>
-                            <Text style={styles.colIco}>{node.collapsed ? '▾' : '▴'}</Text>
+                            <Text style={styles.colIco}>{node.collapsed ? '\u25be' : '\u25b4'}</Text>
                           </TouchableOpacity>
                         </ForeignObject>
                       )}
@@ -340,12 +340,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   nodeLabel: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
+    minHeight: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 8,
   },
   nodeText: {
+    width: '100%',
     fontSize: 11,
     textAlign: 'center',
     color: Colors.textDark,
