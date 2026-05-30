@@ -42,11 +42,42 @@ export default function MindMapScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor="#5B3FD9" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
+      {/* Home Top Bar */}
+      <View style={styles.homeBar}>
+        <View style={styles.homeBarTop}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>Đ</Text>
+              </View>
+            </View>
+            <View style={styles.nameRow}>
+              <Ionicons name="trophy" size={14} color="#FFEAA7" />
+              <Text style={styles.nameText}>Đồng I</Text>
+            </View>
+          </View>
+          <View style={styles.pills}>
+            <View style={styles.pill}>
+              <Ionicons name="ribbon-outline" size={12} color="#FFF" />
+              <Text style={styles.pillText}>Đồng I</Text>
+            </View>
+            <View style={styles.pill}>
+              <Ionicons name="wallet-outline" size={12} color={Colors.pillText} />
+              <Text style={[styles.pillText, { color: Colors.pillText }]}>1,250</Text>
+            </View>
+            <View style={styles.pill}>
+              <Ionicons name="flame-outline" size={12} color={Colors.fireOrange} />
+              <Text style={[styles.pillText, { color: Colors.fireOrange }]}>5</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Branch Top Bar */}
+      <View style={styles.branchBar}>
+        <View style={styles.branchTop}>
           <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color="#8D99AE" />
           </TouchableOpacity>
@@ -86,9 +117,69 @@ export default function MindMapScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#5B3FD9',
   },
-  header: {
+  /* ── Home Top Bar (tím) ── */
+  homeBar: {
+    backgroundColor: '#5B3FD9',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  homeBarTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatarWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  nameText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  pills: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  pillText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+  /* ── Branch Top Bar (trắng) ── */
+  branchBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingTop: 10,
@@ -100,8 +191,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
-  headerTop: {
+  branchTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
